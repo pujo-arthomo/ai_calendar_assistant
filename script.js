@@ -79,14 +79,16 @@ async function bookSlot() {
   }
 
   const res = await fetch(CONFIG.bookSlot, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      slotStart: selectedSlot.start,
-      slotEnd: selectedSlot.end,
-      title: `Meeting with ${guestName}`,
-      description: 'Booked via AI Calendar Assistant',
-      attendees: [guestEmail]
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    slotStart: selectedSlot.start,
+    slotEnd: selectedSlot.end,
+    guestName: guestName,
+    guestEmail: guestEmail,
+    meetingTitle: `Meeting with ${guestName}`,
+    meetingDescription: 'Booked via AI Calendar Assistant',
+    timezone: 'UTC'
     })
   });
 
