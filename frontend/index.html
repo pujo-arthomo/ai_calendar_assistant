@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Calendar Assistant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <div class="container">
+    <h1>AI Calendar Assistant</h1>
+    <p class="subtitle">Find the best available meeting time powered by AI</p>
+
+    <!-- Availability Form -->
+    <section class="card">
+      <h2>Check Availability</h2>
+
+      <label>
+        Start Date
+        <input type="date" id="startDate" />
+      </label>
+
+      <label>
+        End Date
+        <input type="date" id="endDate" />
+      </label>
+
+      <button onclick="fetchAvailability()">Check Availability</button>
+    </section>
+
+    <!-- Results -->
+    <section id="results" class="card hidden">
+      <h2>Recommended Slots</h2>
+      <p id="aiSummary" class="summary"></p>
+      <ul id="slotList"></ul>
+    </section>
+
+    <!-- Booking -->
+    <section id="booking" class="card hidden">
+      <h2>Book Selected Slot</h2>
+
+      <label>
+        Your Name
+        <input type="text" id="guestName" />
+      </label>
+
+      <label>
+        Your Email
+        <input type="email" id="guestEmail" />
+      </label>
+
+      <button onclick="bookSlot()">Book Slot</button>
+    </section>
+
+    <!-- Cancel -->
+    <section class="card">
+      <h2>Cancel Booking</h2>
+
+      <label>
+        Event ID
+        <input type="text" id="cancelEventId" placeholder="Google Calendar Event ID" />
+      </label>
+
+      <button class="danger" onclick="cancelBooking()">Cancel Booking</button>
+    </section>
+
+    <footer>
+      <p>Powered by n8n & Google Calendar API</p>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
