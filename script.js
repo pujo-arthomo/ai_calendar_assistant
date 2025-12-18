@@ -94,7 +94,14 @@ async function bookSlot() {
 
   const data = await res.json();
 
-  alert(`Booking successful!\nEvent ID: ${data.eventId}`);
+  const bookingId = data.booking?.shortId || data.booking?.eventId || 'N/A';
+
+    alert(
+      `Booking successful!\n` +
+      `Booking ID: ${bookingId}\n` +
+      `Meeting: ${data.booking.title}`
+    );
+
 }
 
 // ================================
