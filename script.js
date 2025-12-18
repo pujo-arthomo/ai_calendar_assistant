@@ -10,6 +10,14 @@ const CONFIG = {
 let selectedSlot = null;
 
 // ================================
+// UTIL: SHORT BOOKING ID (4–5 char)
+// ================================
+function shortBookingId(eventId) {
+  if (!eventId) return '-';
+  return eventId.slice(0, 5).toUpperCase();
+}
+
+// ================================
 // FIND AVAILABILITY
 // ================================
 async function fetchAvailability() {
@@ -44,7 +52,6 @@ async function fetchAvailability() {
   data.allSlots.forEach(slot => {
     const li = document.createElement('li');
     li.innerText = `${slot.date} • ${slot.time} (${slot.dayOfWeek})`;
-
     li.onclick = () => selectSlot(li, slot);
     list.appendChild(li);
   });
@@ -54,10 +61,12 @@ async function fetchAvailability() {
 // SELECT SLOT
 // ================================
 function selectSlot(element, slot) {
-  document.querySelectorAll('li').forEach(li => li.classList.remove('selected'));
-  element.classList.add('selected');
+  document.querySelectorAll('#slotList li')
+    .forEach(li => li.classList.remove('selected'));
 
+  element.classList.add('selected');
   selectedSlot = slot;
+
   document.getElementById('booking').classList.remove('hidden');
 }
 
@@ -70,8 +79,10 @@ async function bookSlot() {
     return;
   }
 
-  const guestName = document.getElementById('guestName').value;
-  const guestEmail = document.getElementById('guestEmail').value;
+  const guestName = document.getElementById('guestName').value.trim();
+  const guestEmail = document.getElementById('guestEmail').value.trim();
+  const meetingDescription =
+    document.getElementById('meetingDescription')?.value.trim();
 
   if (!guestName || !guestEmail) {
     alert('Please enter name and email');
@@ -79,49 +90,61 @@ async function bookSlot() {
   }
 
   const res = await fetch(CONFIG.bookSlot, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    slotStart: selectedSlot.start,
-    slotEnd: selectedSlot.end,
-    guestName: guestName,
-    guestEmail: guestEmail,
-    meetingTitle: `Meeting with ${guestName}`,
-    meetingDescription: 'Booked via AI Calendar Assistant',
-    timezone: 'UTC'
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      slotStart: selectedSlot.start,
+      slotEnd: selectedSlot.end,
+
+      guestName,
+      guestEmail,
+
+      meetingTitle: `Meeting with ${guestName}`,
+      meetingDescription:
+        meetingDescription ||
+        `Meeting with ${guestName} – Scheduled via AI Calendar Assistant`,
+
+      timezone: 'Asia/Jakarta'
     })
   });
 
   const data = await res.json();
 
-  const bookingId = data.booking?.shortId || data.booking?.eventId || 'N/A';
+  if (!data.success) {
+    alert(data.message || 'Booking failed');
+    return;
+  }
 
-    alert(
-      `Booking successful!\n` +
-      `Booking ID: ${bookingId}\n` +
-      `Meeting: ${data.booking.title}`
-    );
+  const eventId = data.booking?.eventId || data.eventId;
+  const shortId = shortBookingId(eventId);
 
+  alert(
+    `Booking successful 🎉\n\n` +
+    `Booking ID: ${shortId}\n` +
+    `Guest: ${guestName}\n` +
+    `Time: ${selectedSlot.date} ${selectedSlot.time}`
+  );
 }
 
 // ================================
 // CANCEL BOOKING
 // ================================
 async function cancelBooking() {
-  const eventId = document.getElementById('cancelEventId').value;
+  const eventId = document.getElementById('cancelEventId').value.trim();
 
   if (!eventId) {
-    alert('Please enter Event ID');
+    alert('Please enter Booking / Event ID');
     return;
   }
 
   const res = await fetch(CONFIG.cancelBooking, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ eventId })
+    body: JSON.stringify({
+      eventId
+    })
   });
 
   const data = await res.json();
-
   alert(data.message || 'Booking cancelled');
 }
