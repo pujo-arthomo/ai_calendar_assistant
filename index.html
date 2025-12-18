@@ -40,22 +40,34 @@
     <section id="booking" class="card hidden">
       <h2>Book Selected Slot</h2>
 
-      <label>
-        Meeting With
-        <input type="text" id="guestName" />
-      </label>
+      <label for="guestName">
+        Meeting With</label>
+        <input
+          type="text"
+          id="guestName"
+          placeholder="e.g. Hannah, Client A"
+        />
+      <small class="helper-text">
+        Enter the name of the person you are meeting
+      </small>
 
-      <label>
-        Your Email
-        <input type="email" id="guestEmail" />
-      </label>
+      <label for="guestEmail">
+        Meeting With Email</label>
+        <input
+          type="email"
+          id="guestEmail"
+          placeholder="e.g. hannah@email.com"
+        />
+      <small class="helper-text">
+        This email will receive the calendar invitation
+      </small>
 
       <label for="meetingDescription">
         Meeting Description
         <input
           type="text"
           id="meetingDescription"
-          placeholder="Example: Zoom meeting with Joko – Project Sync"
+          placeholder="Example: Zoom meeting with Hannah – Project Sync"
         />
       </label>
       
