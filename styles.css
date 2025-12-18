@@ -91,3 +91,15 @@ footer {
   font-size: 12px;
   color: #888;
 }
+
+/* ================================
+   Helper text (form guidance)
+================================ */
+
+.helper-text {
+  display: block;
+  margin-top: 4px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #6b7280;
+}
