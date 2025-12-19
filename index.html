@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Calendar Assistant</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div class="container">
+  <h1>AI Calendar Assistant</h1>
+
+  <!-- Check Availability -->
+  <section>
+    <h2>Check Availability</h2>
+
+    <label for="startDate">Date</label>
+    <input type="date" id="startDate" />
+
+    <button onclick="fetchAvailability()">Check Availability</button>
+
+    <p id="aiSummary" class="ai-summary"></p>
+
+    <ul id="slotList"></ul>
+  </section>
+
+  <!-- Booking Section -->
+  <section id="booking" class="hidden">
+    <h2>Book Selected Slot</h2>
+
+    <label for="guestName">Meeting With</label>
+    <input
+      type="text"
+      id="guestName"
+      placeholder="e.g. Joko, Client A"
+    />
+    <small class="helper-text">
+      Enter the name of the person you are meeting
+    </small>
+
+    <label for="guestEmail">Meeting With Email</label>
+    <input
+      type="email"
+      id="guestEmail"
+      placeholder="e.g. joko@email.com"
+    />
+    <small class="helper-text">
+      This email will receive the calendar invitation
+    </small>
+
+    <label for="meetingDescription">Meeting Description</label>
+    <input
+      type="text"
+      id="meetingDescription"
+      placeholder="e.g. Zoom meeting with Joko – Project Sync"
+    />
+    <small class="helper-text">
+      This text will appear in Google Calendar
+    </small>
+
+    <button onclick="bookSlot()">Book Meeting</button>
+  </section>
+
+  <!-- Result -->
+  <section id="result" class="hidden"></section>
+
+  <footer>
+    To cancel or modify a meeting, please use Google Calendar directly.
+  </footer>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
