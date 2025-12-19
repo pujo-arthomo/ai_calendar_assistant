@@ -1,0 +1,585 @@
+{
+  "name": "Complete AI Calendar System - FULLY FIXED",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "find-availability",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1088,
+        112
+      ],
+      "id": "fef57284-570c-47ba-b35c-9cee6abb2a9d",
+      "name": "Webhook - Find Availability",
+      "webhookId": "find-availability-v3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\n\nif (!body.startDate || !body.endDate) {\n  throw new Error('Missing startDate or endDate');\n}\n\nreturn {\n  json: {\n    calendarId: body.calendarId || 'primary',\n    timeMin: body.startDate + 'T00:00:00Z',\n    timeMax: body.endDate + 'T23:59:59Z',\n    workStart: body.workStart || '09:00',\n    workEnd: body.workEnd || '17:00',\n    slotDuration: body.slotDurationMinutes || 30,\n    timezone: body.timezone || 'UTC',\n    useAI: body.useAI !== false\n  }\n};"
+      },
+      "id": "f45c09c1-acac-4523-8e9f-f10121cf5b6d",
+      "name": "Prepare Find Parameters",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/calendar/v3/calendars/{{ $json.calendarId }}/events",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleCalendarOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "timeMin",
+              "value": "={{ $json.timeMin }}"
+            },
+            {
+              "name": "timeMax",
+              "value": "={{ $json.timeMax }}"
+            },
+            {
+              "name": "singleEvents",
+              "value": "true"
+            },
+            {
+              "name": "orderBy",
+              "value": "startTime"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0b089695-7321-469d-bb36-e2cf039f1931",
+      "name": "Fetch Events",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -656,
+        112
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "hrDokkOrE4Ug9CpA",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst events = response.items || [];\nconst params = $('Prepare Find Parameters').first().json;\nconst workStart = params.workStart;\nconst workEnd = params.workEnd;\nconst slotDuration = params.slotDuration;\n\nconst [startHour, startMin] = workStart.split(':').map(Number);\nconst [endHour, endMin] = workEnd.split(':').map(Number);\n\nfunction hasOverlap(slotStart, slotEnd, events) {\n  return events.some(event => {\n    if (!event.start || !event.end) return false;\n    const eventStart = new Date(event.start.dateTime || event.start.date);\n    const eventEnd = new Date(event.end.dateTime || event.end.date);\n    return slotStart < eventEnd && slotEnd > eventStart;\n  });\n}\n\nconst startDate = new Date(params.timeMin);\nconst endDate = new Date(params.timeMax);\nconst freeSlots = [];\nlet currentDay = new Date(startDate);\n\nwhile (currentDay <= endDate) {\n  const dayStart = new Date(currentDay);\n  dayStart.setUTCHours(startHour, startMin, 0, 0);\n  const dayEnd = new Date(currentDay);\n  dayEnd.setUTCHours(endHour, endMin, 0, 0);\n  let slotStart = new Date(dayStart);\n  \n  while (slotStart < dayEnd) {\n    const slotEnd = new Date(slotStart.getTime() + slotDuration * 60000);\n    if (slotEnd <= dayEnd && !hasOverlap(slotStart, slotEnd, events)) {\n      freeSlots.push({\n        start: slotStart.toISOString(),\n        end: slotEnd.toISOString(),\n        date: slotStart.toISOString().split('T')[0],\n        time: `${slotStart.getUTCHours().toString().padStart(2, '0')}:${slotStart.getUTCMinutes().toString().padStart(2, '0')}`,\n        dayOfWeek: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][slotStart.getUTCDay()]\n      });\n    }\n    slotStart = slotEnd;\n  }\n  currentDay.setDate(currentDay.getDate() + 1);\n}\n\nreturn {\n  json: {\n    success: true,\n    totalEvents: events.length,\n    totalFreeSlots: freeSlots.length,\n    freeSlots: freeSlots,\n    useAI: params.useAI,\n    parameters: {\n      workHours: `${workStart} - ${workEnd}`,\n      slotDuration: `${slotDuration} minutes`,\n      dateRange: `${params.timeMin.split('T')[0]} to ${params.timeMax.split('T')[0]}`\n    }\n  }\n};"
+      },
+      "id": "da4c1ba3-4644-41d5-920e-a2352e8b958b",
+      "name": "Calculate Free Slots",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.useAI }}",
+              "value2": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b41df08d-345b-4a36-9cb4-7036db494f06",
+      "name": "Use AI?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare Groq Request - Function Node\nconst data = $input.first().json;\nconst slots = data.freeSlots || [];\nconst sampleSlots = slots.slice(0, 10);\n\n// Build request body as OBJECT (not string!)\nconst groqRequest = {\n  model: \"llama-3.3-70b-versatile\",\n  messages: [\n    {\n      role: \"system\",\n      content: \"You are a scheduling AI assistant. Analyze available time slots and recommend the TOP 3 BEST times for a meeting. Consider: 1) Morning slots (9-11am) are best for productivity, 2) Avoid lunch hours (12-1pm), 3) Mid-week (Tue-Thu) preferred over Mon/Fri, 4) Earlier dates better. Respond ONLY with valid JSON (no markdown): {\\\"recommendations\\\": [{\\\"date\\\": \\\"2024-12-16\\\", \\\"time\\\": \\\"09:00\\\", \\\"dayOfWeek\\\": \\\"Monday\\\", \\\"reason\\\": \\\"Best morning slot\\\", \\\"score\\\": 95}], \\\"summary\\\": \\\"I recommend these times...\\\"}\"\n    },\n    {\n      role: \"user\",\n      content: `Available time slots:\\n${JSON.stringify(sampleSlots, null, 2)}\\n\\nPlease recommend the TOP 3 best slots with reasons.`\n    }\n  ],\n  temperature: 0.7,\n  max_tokens: 1000\n};\n\nreturn {\n  json: {\n    groqRequest: groqRequest,\n    allSlots: data.freeSlots,\n    totalSlots: data.totalFreeSlots,\n    parameters: data.parameters\n  }\n};"
+      },
+      "id": "6ad6863f-de20-4d2e-9013-15ceacbf28c5",
+      "name": "Prepare AI Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.groqRequest }}",
+        "options": {}
+      },
+      "id": "81af266f-7cee-4e55-879e-d2749b8bd8a9",
+      "name": "Call Groq AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "bpNctqVph3RAVGkm",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiData = $input.first().json;\nconst preparedData = $('Prepare AI Prompt').first().json;\n\nlet recommendations = [];\nlet aiSummary = '';\n\ntry {\n  const aiResponse = aiData.choices[0].message.content;\n  const cleaned = aiResponse.replace(/```json\\n?|```/g, '').trim();\n  const parsed = JSON.parse(cleaned);\n  \n  recommendations = parsed.recommendations || [];\n  aiSummary = parsed.summary || 'AI recommendations generated.';\n} catch (error) {\n  recommendations = preparedData.allSlots.slice(0, 3).map((slot, i) => ({\n    ...slot,\n    reason: 'Available time slot',\n    score: 85 - (i * 5)\n  }));\n  aiSummary = 'Showing first available slots.';\n}\n\nreturn {\n  json: {\n    success: true,\n    aiPowered: true,\n    totalFreeSlots: preparedData.totalSlots,\n    topRecommendations: recommendations,\n    aiSummary: aiSummary,\n    allSlots: preparedData.allSlots,\n    parameters: preparedData.parameters\n  }\n};"
+      },
+      "id": "213bae29-c8d0-40fc-b91d-7527903f96fe",
+      "name": "Process AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "bb9511d2-a683-4ef9-bd9a-b5e7e36c15c6",
+      "name": "Respond Availability",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "book-slot",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1088,
+        400
+      ],
+      "id": "372ea33d-6f5b-46a2-bb33-54cdfb0596ff",
+      "name": "Webhook - Book Slot",
+      "webhookId": "book-slot-v3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get raw input\nconst raw = $input.first().json;\n\n// Normalize possible payload locations\nconst body =\n  raw.body && Object.keys(raw.body).length > 0\n    ? raw.body\n    : raw;\n\n// Normalize slot\nconst slotStart = body.slotStart || body.startTime || body.start;\nconst slotEnd = body.slotEnd || body.endTime || body.end;\n\n// Normalize guest email\nconst guestEmail =\n  body.guestEmail ||\n  (Array.isArray(body.attendees) ? body.attendees[0] : null);\n\n// Normalize guest name\nconst guestName =\n  body.guestName ||\n  (body.meetingTitle\n    ? body.meetingTitle.replace(/^Meeting with\\s*/i, '')\n    : body.title\n      ? body.title.replace(/^Meeting with\\s*/i, '')\n      : 'Guest');\n\n// Validate required fields\nif (!slotStart || !slotEnd) {\n  throw new Error('Missing slotStart or slotEnd');\n}\n\nif (!guestEmail) {\n  throw new Error('Missing guest information');\n}\n\n// Validate email format\nconst emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\nif (!emailRegex.test(guestEmail)) {\n  throw new Error('Invalid email format');\n}\n\n// Return normalized output\nreturn {\n  json: {\n    calendarId: body.calendarId || 'primary',\n    slotStart,\n    slotEnd,\n    guestEmail,\n    guestName,\n    meetingTitle:\n      body.meetingTitle ||\n      body.title ||\n      `Meeting with ${guestName}`,\n    meetingDescription:\n      body.meetingDescription ||\n      body.description ||\n      'Scheduled via AI Calendar',\n    timezone: body.timezone || 'UTC'\n  }\n};\n"
+      },
+      "id": "81a03172-df4f-4f53-8df1-2b18fed7dbb5",
+      "name": "Validate Booking",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://www.googleapis.com/calendar/v3/calendars/{{ $json.calendarId }}/events",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleCalendarOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"summary\": \"{{ $json.meetingTitle || ('Meeting with ' + $json.guestName) }}\",\n  \"description\": \"{{ $json.meetingDescription || 'Scheduled via AI Calendar Assistant' }}\",\n  \"start\": {\n    \"dateTime\": \"{{ $json.slotStart }}\",\n    \"timeZone\": \"{{ $json.timezone || 'UTC' }}\"\n  },\n  \"end\": {\n    \"dateTime\": \"{{ $json.slotEnd }}\",\n    \"timeZone\": \"{{ $json.timezone || 'UTC' }}\"\n  },\n  \"attendees\": [\n    {\n      \"email\": \"{{ $json.guestEmail }}\"\n    }\n  ],\n  \"sendUpdates\": \"all\"\n}\n",
+        "options": {}
+      },
+      "id": "1764c317-60ec-4934-b0fa-092ccaa1dca4",
+      "name": "Create Calendar Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -656,
+        400
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "hrDokkOrE4Ug9CpA",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const event = $input.first().json;\nconst bookingData = $('Validate Booking').first().json;\n\nreturn {\n  json: {\n    success: true,\n    message: 'Booking confirmed!',\n    booking: {\n      eventId: event.id,\n      htmlLink: event.htmlLink,\n      title: event.summary,\n      startTime: event.start.dateTime,\n      endTime: event.end.dateTime,\n      guest: {\n        name: bookingData.guestName,\n        email: bookingData.guestEmail\n      },\n      status: event.status\n    }\n  }\n};"
+      },
+      "id": "e6b12049-debb-4db7-b041-78822a3704e0",
+      "name": "Format Booking Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "45eccfc7-d7b0-4c3b-8385-95e156dc376c",
+      "name": "Respond Booking",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -208,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cancel-booking",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1088,
+        704
+      ],
+      "id": "78dccb74-b039-4bba-bbc8-6ad27d24e262",
+      "name": "Webhook - Cancel Booking",
+      "webhookId": "cancel-booking-v3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\n\nif (!body.eventId) {\n  throw new Error('Missing eventId');\n}\n\nreturn {\n  json: {\n    calendarId: body.calendarId || 'primary',\n    eventId: body.eventId,\n    reason: body.reason || 'Cancelled by user'\n  }\n};"
+      },
+      "id": "6d973ade-95c5-4c25-9646-59c443e2fb1e",
+      "name": "Validate Cancel Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/calendar/v3/calendars/{{ $json.calendarId }}/events/{{ $json.eventId }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleCalendarOAuth2Api",
+        "options": {}
+      },
+      "id": "aa3849f6-5c9e-4a0d-9d91-7332dec458aa",
+      "name": "Get Event Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -656,
+        704
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "hrDokkOrE4Ug9CpA",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://www.googleapis.com/calendar/v3/calendars/{{ $('Validate Cancel Request').first().json.calendarId }}/events/{{ $('Validate Cancel Request').first().json.eventId }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleCalendarOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "sendUpdates",
+              "value": "all"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ff9b1014-5085-4b6e-8264-eb266e3ccfe1",
+      "name": "Delete Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -432,
+        704
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "hrDokkOrE4Ug9CpA",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const eventDetails = $('Get Event Details').first().json;\nconst cancelData = $('Validate Cancel Request').first().json;\n\nreturn {\n  json: {\n    success: true,\n    message: 'Booking cancelled successfully',\n    cancelledEvent: {\n      eventId: cancelData.eventId,\n      title: eventDetails.summary || 'N/A',\n      startTime: eventDetails.start?.dateTime || 'N/A',\n      endTime: eventDetails.end?.dateTime || 'N/A',\n      reason: cancelData.reason,\n      cancelledAt: new Date().toISOString()\n    }\n  }\n};"
+      },
+      "id": "2bdf1459-9541-4219-8fd6-3f280d272c44",
+      "name": "Format Cancel Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "3266e1b1-e3c7-4aa3-9cef-2e28439a2b88",
+      "name": "Respond Cancel",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        704
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Find Availability": {
+      "main": [
+        [
+          {
+            "node": "Prepare Find Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Find Parameters": {
+      "main": [
+        [
+          {
+            "node": "Fetch Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Events": {
+      "main": [
+        [
+          {
+            "node": "Calculate Free Slots",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Free Slots": {
+      "main": [
+        [
+          {
+            "node": "Use AI?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use AI?": {
+      "main": [
+        [
+          {
+            "node": "Prepare AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Availability",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare AI Prompt": {
+      "main": [
+        [
+          {
+            "node": "Call Groq AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Groq AI": {
+      "main": [
+        [
+          {
+            "node": "Process AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process AI Response": {
+      "main": [
+        [
+          {
+            "node": "Respond Availability",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Book Slot": {
+      "main": [
+        [
+          {
+            "node": "Validate Booking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Booking": {
+      "main": [
+        [
+          {
+            "node": "Create Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Calendar Event": {
+      "main": [
+        [
+          {
+            "node": "Format Booking Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Booking Response": {
+      "main": [
+        [
+          {
+            "node": "Respond Booking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Cancel Booking": {
+      "main": [
+        [
+          {
+            "node": "Validate Cancel Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Cancel Request": {
+      "main": [
+        [
+          {
+            "node": "Get Event Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Event Details": {
+      "main": [
+        [
+          {
+            "node": "Delete Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Event": {
+      "main": [
+        [
+          {
+            "node": "Format Cancel Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Cancel Response": {
+      "main": [
+        [
+          {
+            "node": "Respond Cancel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "3a366dcf-ffdf-475d-b4fd-c8fbdea9ddbc",
+  "meta": {
+    "instanceId": "bdcd4072794105f23468d9cc42acfa4b2a098f828e3dfa4569d2f612fabf5f33"
+  },
+  "id": "MM21Pd6LKLnicFf6",
+  "tags": []
+}
