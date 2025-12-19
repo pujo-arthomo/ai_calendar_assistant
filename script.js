@@ -2,8 +2,8 @@
 // CONFIG
 // ================================
 const CONFIG = {
-  findAvailability: 'https://YOUR-N8N-URL/webhook/find-availability',
-  bookSlot: 'https://YOUR-N8N-URL/webhook/book-slot'
+  findAvailability: 'https://pujo-arthomo-2.app.n8n.cloud/webhook/find-availability',
+  bookSlot: 'https://pujo-arthomo-2.app.n8n.cloud/webhook/book-slot'
 };
 
 let selectedSlot = null;
